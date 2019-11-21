@@ -16,6 +16,7 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
+
 __metaclass__ = type
 
 ANSIBLE_METADATA = {
@@ -125,8 +126,10 @@ message:
 '''
 
 from ansible.module_utils.basic import json, AnsibleModule
+
 try:
     import requests
+
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
@@ -141,18 +144,57 @@ class SyncopeUserHandler(object):
             adminPwd=dict(type='str', required=True),
             serverName=dict(type='str', required=True),
             syncopeUser=dict(type='str', required=True),
-            newStatus=dict(type='str', choices=['SUSPEND', 'ACTIVATE', 'REACTIVATE'], required=True),
-            changeStatusOnSyncope=dict(type='str', required=True)
+            newStatus=dict(type='str', choices=['SUSPEND', 'ACTIVATE', 'REACTIVATE'], required=False),
+            changeStatusOnSyncope=dict(type='str', required=False)
         )
 
         self.module = AnsibleModule(
-            argument_spec=self.argument_spec
+            argument_spec=self.argument_spec,
+            supports_check_mode=True
         )
 
+        self.result = dict(
+            ok=False,
+            changed=False,
+            message=''
+        )
+
+    def get_user_rest_call(self):
+        url = self.module.params['serverName'] + "/syncope/rest/users/" + self.module.params['syncopeUser']
+
+        headers = {'Accept': 'application/json',
+                   'Prefer': 'return-content',
+                   'X-Syncope-Domain': 'Master'
+                   }
+
+        user = self.module.params['adminUser']
+        password = self.module.params['adminPwd']
+
+        try:
+            resp = requests.get(url, headers=headers, auth=(user, password))
+            resp_json = resp.json()
+
+            if resp_json is None or resp is None or resp.status_code != 200:
+                return None
+            else:
+                return resp_json
+        except Exception as e:
+            res = json.load(e)
+            self.module.fail_json(msg=res)
+
     def change_user_status_rest_call(self):
-        server_name = self.module.params['serverName']
-        api_endpoint = "/syncope/rest/users/" + self.module.params['syncopeUser'] + "/status"
-        url = server_name + api_endpoint
+
+        # Supports check mode
+        if self.module.check_mode:
+            user = self.get_user_rest_call()
+            if user is None or user['entity']['status'] == self.module.params['newStatus']:
+                self.result['message'] = "Error while changing status"
+                return self.result
+            else:
+                self.result['message'] = "The operation con be executed successfully"
+                self.result['ok'] = True
+
+        url = self.module.params['serverName'] + "/syncope/rest/users/" + self.module.params['syncopeUser'] + "/status"
 
         headers = {'Accept': 'application/json',
                    'Content-Type': 'application/json',
@@ -167,46 +209,34 @@ class SyncopeUserHandler(object):
             "type": self.module.params['newStatus']
         }
 
-        user = self.module.params['adminUser'] or 'admin'
-        password = self.module.params['adminPwd'] or 'password'
-
-        # seed the result dict in the object
-        result = dict(
-            changed=False,
-            message=''
-        )
+        user = self.module.params['adminUser']
+        password = self.module.params['adminPwd']
 
         try:
             resp = requests.post(url, headers=headers, auth=(user, password), data=json.dumps(payload))
             resp_json = resp.json()
 
             if resp_json is None or resp is None or resp.status_code != 200:
-                result['message'] = "Error while changing status"
-                return result
+                self.result['message'] = "Error while changing status"
+                return self.result
+            else:
+                self.result['message'] = resp_json
+                self.result['ok'] = True
+                self.result['changed'] = True
+
         except Exception as e:
             res = json.load(e)
             self.module.fail_json(msg=res)
 
-        result['message'] = resp_json
-
-        # use whatever logic you need to determine whether or not this modules
-        # made any modifications to your target
-        result['changed'] = True
-
-        # in the event of a successful modules execution, you will want to
-        # simple AnsibleModule.exit_json(), passing the key/value results
-        return result
+        return self.result
 
     def apply(self):
-        # during the execution of the modules, if there is an exception or a
-        # conditional state that effectively causes a failure, run
-        # AnsibleModule.fail_json() to pass in the message and the result
-        if(not HAS_REQUESTS):
+        if not HAS_REQUESTS:
             self.module.fail_json(msg='Please install requests module')
 
         if self.module.params['action'] == 'change status':
             result = self.change_user_status_rest_call()
-            if result['changed']:
+            if result['ok']:
                 self.module.exit_json(**result)
             else:
                 self.module.fail_json(msg=result['message'])

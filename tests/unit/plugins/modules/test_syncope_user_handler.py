@@ -20,14 +20,14 @@ class AnsibleFailJson(Exception):
     pass
 
 
-def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
+def exit_json(*args, **kwargs):
     """function to patch over exit_json; package return data into an exception"""
     if 'changed' not in kwargs:
         kwargs['changed'] = False
     raise AnsibleExitJson(kwargs)
 
 
-def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
+def fail_json(*args, **kwargs):
     """function to patch over fail_json; package return data into an exception"""
     kwargs['failed'] = True
     raise AnsibleFailJson(kwargs)
@@ -50,10 +50,18 @@ def mock_failed_post(*args, **kwargs):
     return MockResponse([], 500)
 
 
+def mock_succeeded_get(*args, **kwargs):
+    return MockResponse([], 200)
+
+
+def mock_failed_get(*args, **kwargs):
+    return MockResponse([], 500)
+
+
 def set_module_args(args):
     """prepare arguments so that they will be picked up during module creation"""
     args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
-    basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
+    basic._ANSIBLE_ARGS = to_bytes(args)
 
 
 class TestMyModule(unittest.TestCase):
@@ -93,3 +101,21 @@ class TestMyModule(unittest.TestCase):
         my_obj = SyncopeUserHandler()
         result = my_obj.change_user_status_rest_call()
         self.assertFalse(result['changed'])
+
+    @patch('plugins.modules.syncope_user_handler.requests.get', side_effect=mock_succeeded_get)
+    def test_get_user_success(self, mock_get):
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = SyncopeUserHandler()
+        result = my_obj.get_user_rest_call()
+        self.assertTrue(result['ok'])
+
+    @patch('plugins.modules.syncope_user_handler.requests.get', side_effect=mock_failed_get)
+    def test_get_user_failure(self, mock_get):
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = SyncopeUserHandler()
+        result = my_obj.get_user_rest_call()
+        self.assertFalse(result['ok'])
