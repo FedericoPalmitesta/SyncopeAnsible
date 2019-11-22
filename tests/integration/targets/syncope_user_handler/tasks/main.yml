@@ -19,7 +19,7 @@
     adminUser: "admin"
     adminPwd: "password"
     serverName: "https://syncope-vm.apache.org"
-    syncopeUser: "c9b2dec2-00a7-4855-97c0-d854842b4b24"
+    syncopeUser: "1417acbe-cbf6-4277-9372-e75e04f97000"
     changeStatusOnSyncope: "true"
     newStatus: "SUSPEND" # REACTIVATE, ACTIVATE, SUSPEND
   register: results

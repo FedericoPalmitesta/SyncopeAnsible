@@ -184,15 +184,14 @@ class SyncopeUserHandler(object):
 
     def change_user_status_rest_call(self):
 
-        # Supports check mode
-        if self.module.check_mode:
-            user = self.get_user_rest_call()
-            if user is None or user['entity']['status'] == self.module.params['newStatus']:
-                self.result['message'] = "Error while changing status"
-                return self.result
-            else:
-                self.result['message'] = "The operation con be executed successfully"
-                self.result['ok'] = True
+        user = self.get_user_rest_call()
+        if user is None:
+            self.result['message'] = "Error while changing status"
+            return self.result
+        elif self.module.check_mode and user['entity']['status'] != self.module.params['newStatus']:
+            self.result['message'] = "The operation con be executed successfully"
+            self.result['ok'] = True
+            return self.result
 
         url = self.module.params['serverName'] + "/syncope/rest/users/" + self.module.params['syncopeUser'] + "/status"
 
@@ -206,14 +205,15 @@ class SyncopeUserHandler(object):
             "value": "org.apache.syncope.common.lib.types.StatusPatchType",
             "onSyncope": self.module.params['changeStatusOnSyncope'],
             "key": self.module.params['syncopeUser'],
-            "type": self.module.params['newStatus']
+            "type": self.module.params['newStatus'],
+            "resources": user['resources']
         }
 
-        user = self.module.params['adminUser']
+        admin = self.module.params['adminUser']
         password = self.module.params['adminPwd']
 
         try:
-            resp = requests.post(url, headers=headers, auth=(user, password), data=json.dumps(payload))
+            resp = requests.post(url, headers=headers, auth=(admin, password), data=json.dumps(payload))
             resp_json = resp.json()
 
             if resp_json is None or resp is None or resp.status_code != 200:
