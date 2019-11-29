@@ -22,7 +22,7 @@
          > of the `plugins/modules/syncope_user_handler` class
 
       2. With Playbook:
-         from the base directory:
+         from the base directory execute
          ```sh
          ansible-test integration
          ```
