@@ -13,7 +13,7 @@
 # limitations under the License.
 
 ---
-- name: run syncope_user_handler module
+- name: run syncope_user_handler change status method
   syncope_user_handler:
     action: "change status"
     adminUser: "admin"
@@ -23,6 +23,33 @@
     changeStatusOnSyncope: "true"
     newStatus: "SUSPEND" # REACTIVATE, ACTIVATE, SUSPEND
   register: results
-- name: syncope_user_handler result message
+- name: syncope_user_handler change status result message
+  debug:
+    msg: '{{ results }}'
+
+- name: run syncope_user_handler change status method
+  syncope_user_handler:
+    action: "change status"
+    adminUser: "admin"
+    adminPwd: "password"
+    serverName: "https://syncope-vm.apache.org"
+    syncopeUser: "1417acbe-cbf6-4277-9372-e75e04f97000"
+    changeStatusOnSyncope: "true"
+    newStatus: "REACTIVATE" # REACTIVATE, ACTIVATE, SUSPEND
+  register: results
+- name: syncope_user_handler change status result message
+  debug:
+    msg: '{{ results }}'
+
+- name: run syncope_user_handler modify user method
+  syncope_user_handler:
+    action: "modify user"
+    adminUser: "admin"
+    adminPwd: "password"
+    serverName: "https://syncope-vm.apache.org"
+    syncopeUser: "1417acbe-cbf6-4277-9372-e75e04f97000"
+    newAttributeValue: "firstname=ciao;surname=mondo"
+  register: results
+- name: syncope_user_handler modify user result message
   debug:
     msg: '{{ results }}'

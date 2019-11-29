@@ -51,7 +51,16 @@ def mock_failed_post(*args, **kwargs):
 
 
 def mock_succeeded_get(*args, **kwargs):
-    return MockResponse([], 200)
+    json_user = """{"@class": "org.apache.syncope.common.lib.to.UserTO",
+        "key": "c9b2dec2-00a7-4855-97c0-d854842b4b24",
+        "username": "bellini", "status": "suspended",
+        "plainAttrs": [
+            { "schema": "firstname", "values": ["Vincenzo"]}, {"schema": "surname", "values": ["Bellini"]}
+        ],
+        "resources": []
+    }"""
+    data = json.loads(json_user)
+    return MockResponse(data, 200)
 
 
 def mock_failed_get(*args, **kwargs):
@@ -80,12 +89,14 @@ class TestMyModule(unittest.TestCase):
             'adminPwd': 'pwd',
             'serverName': 'url',
             'syncopeUser': 'id',
+            'newAttributeValue': 'firstname=test;surname=test',
             'newStatus': 'SUSPEND',
             'changeStatusOnSyncope': True
         })
 
     @patch('plugins.modules.syncope_user_handler.requests.post', side_effect=mock_succeeded_post)
-    def test_change_status_success(self, mock_post):
+    @patch('plugins.modules.syncope_user_handler.requests.get', side_effect=mock_succeeded_get)
+    def test_change_status_success(self, mock_post, mock_get):
         module_args = {}
         module_args.update(self.set_default_args())
         set_module_args(module_args)
@@ -94,7 +105,8 @@ class TestMyModule(unittest.TestCase):
         self.assertTrue(result['changed'])
 
     @patch('plugins.modules.syncope_user_handler.requests.post', side_effect=mock_failed_post)
-    def test_change_status_failure(self, mock_post):
+    @patch('plugins.modules.syncope_user_handler.requests.get', side_effect=mock_succeeded_get)
+    def test_change_status_failure(self, mock_post, mock_get):
         module_args = {}
         module_args.update(self.set_default_args())
         set_module_args(module_args)
@@ -109,7 +121,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(module_args)
         my_obj = SyncopeUserHandler()
         result = my_obj.get_user_rest_call()
-        self.assertTrue(result['ok'])
+        self.assertTrue(result['username'] == 'bellini')
 
     @patch('plugins.modules.syncope_user_handler.requests.get', side_effect=mock_failed_get)
     def test_get_user_failure(self, mock_get):
@@ -118,4 +130,24 @@ class TestMyModule(unittest.TestCase):
         set_module_args(module_args)
         my_obj = SyncopeUserHandler()
         result = my_obj.get_user_rest_call()
-        self.assertFalse(result['ok'])
+        self.assertTrue(result is None)
+
+    @patch('plugins.modules.syncope_user_handler.requests.get', side_effect=mock_succeeded_get)
+    @patch('plugins.modules.syncope_user_handler.requests.put', side_effect=mock_succeeded_post)
+    def test_modify_user_success(self, mock_get, mock_put):
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = SyncopeUserHandler()
+        result = my_obj.modify_user_rest_call()
+        self.assertTrue(result['changed'])
+
+    @patch('plugins.modules.syncope_user_handler.requests.get', side_effect=mock_failed_get)
+    @patch('plugins.modules.syncope_user_handler.requests.put', side_effect=mock_failed_post)
+    def test_modify_user_failure(self, mock_get, mock_put):
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = SyncopeUserHandler()
+        result = my_obj.modify_user_rest_call()
+        self.assertFalse(result['changed'])
