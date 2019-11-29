@@ -41,6 +41,18 @@
   debug:
     msg: '{{ results }}'
 
+- name: run syncope_user_handler set must change password method
+  syncope_user_handler:
+    action: "set must change password"
+    adminUser: "admin"
+    adminPwd: "password"
+    serverName: "https://syncope-vm.apache.org"
+    syncopeUser: "1417acbe-cbf6-4277-9372-e75e04f97000"
+  register: results
+- name: syncope_user_handler set must change password result message
+  debug:
+    msg: '{{ results }}'
+
 - name: run syncope_user_handler modify user method
   syncope_user_handler:
     action: "modify user"

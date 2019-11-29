@@ -151,3 +151,23 @@ class TestMyModule(unittest.TestCase):
         my_obj = SyncopeUserHandler()
         result = my_obj.modify_user_rest_call()
         self.assertFalse(result['changed'])
+
+    @patch('plugins.modules.syncope_user_handler.requests.get', side_effect=mock_succeeded_get)
+    @patch('plugins.modules.syncope_user_handler.requests.put', side_effect=mock_succeeded_post)
+    def test_set_must_change_password_success(self, mock_get, mock_put):
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = SyncopeUserHandler()
+        result = my_obj.set_must_change_password_rest_call()
+        self.assertTrue(result['changed'])
+
+    @patch('plugins.modules.syncope_user_handler.requests.get', side_effect=mock_failed_get)
+    @patch('plugins.modules.syncope_user_handler.requests.put', side_effect=mock_failed_post)
+    def test_set_must_change_password_failure(self, mock_get, mock_put):
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = SyncopeUserHandler()
+        result = my_obj.set_must_change_password_rest_call()
+        self.assertFalse(result['changed'])
